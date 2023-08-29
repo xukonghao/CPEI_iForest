@@ -15,6 +15,8 @@ from CPEI_Iforest import IsolationTreeEnsemble
 import matplotlib.pyplot as plt
 from sklearn.ensemble import IsolationForest
 from sklearn.datasets import make_classification
+from sklearn.neural_network import BernoulliRBM
+from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, f1_score,accuracy_score,ConfusionMatrixDisplay,confusion_matrix,mutual_info_score,roc_auc_score
 from sklearn.linear_model import LogisticRegression
@@ -213,7 +215,7 @@ data_continuous = pd.DataFrame(data_continuous)  # data = pd.DataFrame(data=data
 # data_discrete = scaler.transform(data_discrete)
 # data_discrete = pd.DataFrame(data_discrete)
 #print("归一化后数据 data_continuous.shape:", data_continuous.shape," data_discrete.shape:",data_discrete.shape)
-print("归一化后数据 data_continuous.shape:", data_continuous.shape)
+print("归一化后数据(列)", data_continuous.shape[1])
 
 # 方差 预过滤----------------------------------------------------------------
 variance_continuous = []
@@ -228,29 +230,17 @@ head_row_continuous = data_continuous.columns.tolist()
 # data_discrete=filter_by_variance(0, variance_discrete, data_discrete)
 # head_row_discrete = data_discrete.columns.tolist()
 # print("方差过滤后 data_continuous.shape:", data_continuous.shape," data_discrete.shape:",data_discrete.shape)
-print("方差过滤后 data_continuous.shape:", data_continuous.shape)
+print("方差过滤后数据(列)", data_continuous.shape[1])
 
-# # 皮尔逊，互信息系数筛选阈值 过滤 xgboost模型计算准确率和耗时
-pearson_threshold = [i / 10 for i in range(1, 11)]
+# 定义L1正则化稀疏自编码器模型
+model = Pipeline(steps=[('rbm', BernoulliRBM(n_components=33, n_iter=20, learning_rate=0.1, verbose=True, random_state=42))])
+# 训练L1正则化稀疏自编码器模型 降维
+model.fit(data_continuous)
 mutual_info_threshold = [i / 10 for i in range(1, 11)]
-# accuracy = [[None for j in range(10)] for i in range(10)]
-i = 4
-j = 5
-# dataTemp_pearson = pd.DataFrame(data=data_continuous.values, columns=head_row_continuous)
-# dataTemp_pearson = filter_by_pearson(pearson_threshold[i], dataTemp_pearson)
-# dataTemp_mutual_info = copy.deepcopy(dataTemp_pearson)  # 数据深拷贝
 data_continuous = pd.DataFrame(data=data_continuous.values, columns=head_row_continuous)
-data_continuous = filter_by_mutual_info(mutual_info_threshold[j], data_continuous)
-print("互信息过滤 data_continuous.shape:", data_continuous.shape)
-
-data_continuous = filter_by_pearson(pearson_threshold[i], data_continuous)
-
-# pearson_threshold = [i / 10 for i in range(1, 11)]
-# i = 7
-# data_discrete = pd.DataFrame(data=data_discrete.values, columns=head_row_discrete)
-# data_discrete = filter_by_pearson(pearson_threshold[i], data_discrete)
-# print("皮尔逊过滤 data_continuous.shape:", data_continuous.shape," data_discrete.shape:",data_discrete.shape)
-print("皮尔逊过滤 data_continuous.shape:", data_continuous.shape)
+data_continuous = filter_by_mutual_info(mutual_info_threshold[4], data_continuous)
+data_continuous = filter_by_pearson(0.6, data_continuous)
+print("L1正则化稀疏自编码器 降维后数据(列)", data_continuous.shape[1])
 
 X_train, X_test, y_train, y_test = train_test_split(data_continuous, label_list, test_size=0.2,
                                                     random_state=42)

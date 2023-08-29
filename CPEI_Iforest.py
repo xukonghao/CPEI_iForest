@@ -129,8 +129,7 @@ class iTree:
         if std_sum==0:
             return float('inf')
 
-        # score = mean_diff + std_sum
-        # score = np.abs(mean_diff - std_sum)
+        score = np.abs(mean_diff/std_sum)
         score = mean_diff
         # print("mean_diff:",mean_diff," std_sum:",std_sum," score:",score)
         return score

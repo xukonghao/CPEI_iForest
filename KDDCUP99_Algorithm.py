@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 from sklearn.ensemble import IsolationForest
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
+from sklearn.neural_network import BernoulliRBM
+from sklearn.pipeline import Pipeline
 from sklearn.metrics import roc_curve, f1_score,accuracy_score,ConfusionMatrixDisplay,confusion_matrix,mutual_info_score,roc_auc_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.cluster import KMeans
@@ -113,16 +115,15 @@ label_list_sort = []
 # 读取文件，获取标签，表头，数据---------------------------------------------------------
 read_csv("Dataset/KDDCUP99/kddcup.data_10_percent_corrected.csv")
 data = pd.DataFrame(data=np.array(data), columns=head_row)
-#离散数据提取
+#数据提取
 index_list = [ 1, 2, 3, 6, 11, 20, 21]
 head_row_discrete = [head_row[i] for i in index_list]
 data_discrete = copy.deepcopy(data)
 data_discrete = data_discrete.loc[:, head_row_discrete]
 label_list_discrete = copy.deepcopy(label_list)
-#连续数据处理
 data_continuous = copy.deepcopy(data)  # 数据深拷贝
 data_continuous = data.drop(head_row_discrete, axis=1)
-print("normal:", len(normal), "attack:", len(attack), "data.shape", data.shape, "data_continuous", data_continuous.shape, "data_discrete", data_discrete.shape)
+print("normal:", len(normal), "attack:", len(attack), "data.shape", data.shape)
 # for i, x in enumerate(label_list):
 #     if x == 0: label_list[i] = 1
 #     elif x== 1: label_list[i] = 0
@@ -136,7 +137,7 @@ data_continuous = pd.DataFrame(data_continuous)  # data = pd.DataFrame(data=data
 scaler.fit(data_discrete)
 data_discrete = scaler.transform(data_discrete)
 data_discrete = pd.DataFrame(data_discrete)
-print("归一化后数据 data_continuous.shape:", data_continuous.shape," data_discrete.shape:",data_discrete.shape)
+print("归一化后数据 data.shape:", data.shape)
 
 # 方差 预过滤----------------------------------------------------------------
 variance_continuous = []
@@ -150,14 +151,16 @@ for i in range(data_discrete.columns.size):
     variance_discrete.append(np.var(data_discrete[data_discrete.columns[i]]))  # 计算方差
 data_discrete=filter_by_variance(0, variance_discrete, data_discrete)
 head_row_discrete = data_discrete.columns.tolist()
-print("方差过滤后 data_continuous.shape:", data_continuous.shape," data_discrete.shape:",data_discrete.shape)
+print("方差过滤后 data.shape:", data_continuous.shape)
 
-# # 皮尔逊，互信息系数筛选阈值 过滤 xgboost模型计算准确率和耗时
+# 定义L1正则化稀疏自编码器模型
+model = Pipeline(steps=[('rbm', BernoulliRBM(n_components=33, n_iter=20, learning_rate=0.1, verbose=True, random_state=42))])
+# 训练L1正则化稀疏自编码器模型 降维
+model.fit(data_continuous)
 pearson_threshold = [i / 10 for i in range(1, 11)]
-i = 5
 data_continuous = pd.DataFrame(data=data_continuous.values, columns=head_row_continuous)
-data_continuous = filter_by_pearson(pearson_threshold[i], data_continuous)
-print("皮尔逊过滤 data_continuous.shape:", data_continuous.shape," data_discrete.shape:",data_discrete.shape)
+data_continuous = filter_by_pearson(pearson_threshold[5], data_continuous)
+print("L1正则化稀疏自编码器模型 降维后 data.shape:", data_continuous.shape)
 X_train, X_test, y_train, y_test = train_test_split(data_continuous, label_list, test_size=0.2,
                                                     random_state=170)
 
@@ -186,14 +189,14 @@ X_train, X_test, y_train, y_test = train_test_split(data_continuous, label_list,
 
 
 # CPEI_孤立森林模型
-if 0:
+if 1:
     list_score = [i * 0 for i in range(0)]
-    for i in range(3000, 5000):
+    for i in range(3000, 3100):
         print("------------------------------CPEI_孤立森林模型 i=", i, "-------------------------------------------------")
         # 创建一个孤立森林模型
         start_time = datetime.datetime.now()
         # model = IsolationTreeEnsemble(sample_size=1024 * 2, n_trees=10, random_state=121)
-        model = IsolationTreeEnsemble(sample_size=256, n_trees=15, random_state=i)
+        model = IsolationTreeEnsemble(sample_size=256, n_trees=15, random_state=3003)
         # model = IsolationTreeEnsemble(sample_size=256, n_trees=100, random_state=159)
         # 对数据进行拟合
         model.fit(X_train)
@@ -519,7 +522,7 @@ if 0:
         plt.show()
 
 #孤立森林模型
-if 1:
+if 0:
     list_score = [i * 0 for i in range(0)]
     for i in range(100, 200):
         print("------------------------------i=", i, "-------------------------------------------------")
